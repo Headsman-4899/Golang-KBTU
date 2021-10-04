@@ -1,7 +1,7 @@
 package main
 
 import (
-	"testing"
+	"testing" // тест функции FindGipotenusa
 )
 
 func TestGetVal(t *testing.T) {
