@@ -6,7 +6,8 @@ type Game struct {
 	Description string   `json:description`
 	Genre       []string `json:genre`
 
-	Price     float64 `json:price`
-	Developer string  `json:developer`
-	Publisher string  `json:publisher`
+	Price     float64  `json:price`
+	Developer string   `json:developer`
+	Publisher string   `json:publisher`
+	Reviews   []string `json:reviews`
 }
