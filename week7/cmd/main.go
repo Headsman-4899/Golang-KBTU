@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	store := inmemory.NewDB()
+	store := inmemory.Init()
 
 	srv := http.NewServer(context.Background(), ":8080", store)
 	if err := srv.Run(); err != nil {

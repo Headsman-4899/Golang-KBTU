@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"lectures/hw6/internal/models"
 	"lectures/hw6/internal/store"
 	"log"
 	"net/http"
-	"strconv"
+	"os"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -18,16 +19,16 @@ import (
 type Server struct {
 	ctx         context.Context
 	idleConnsCh chan struct{}
-	store       store.Store
+	store       store.GamesRepository
 
 	Address string
 }
 
-func NewServer(ctx context.Context, address string, store store.Store) *Server {
+func NewServer(ctx context.Context, address string, games store.GamesRepository) *Server {
 	return &Server{
 		ctx:         ctx,
 		idleConnsCh: make(chan struct{}),
-		store:       store,
+		store:       games,
 
 		Address: address,
 	}
@@ -36,7 +37,6 @@ func NewServer(ctx context.Context, address string, store store.Store) *Server {
 func (s *Server) basicHandler() chi.Router {
 	r := chi.NewRouter()
 
-
 	// Games
 	r.Post("/games", func(w http.ResponseWriter, r *http.Request) {
 		game := new(models.Game)
@@ -44,32 +44,34 @@ func (s *Server) basicHandler() chi.Router {
 			fmt.Fprintf(w, "Unknown err: %v", err)
 			return
 		}
-
-		s.store.Games().Create(r.Context(), game)
+		game.ID = primitive.NewObjectID()
+		err := s.store.Create(r.Context(), game)
+		if err != nil {
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
 	})
+
 	r.Get("/games", func(w http.ResponseWriter, r *http.Request) {
-		games, err := s.store.Games().All(r.Context())
+		games, err := s.store.All(r.Context())
 		if err != nil {
 			fmt.Fprintf(w, "Unknown err: %v", err)
 			return
 		}
-
 		render.JSON(w, r, games)
 	})
+
 	r.Get("/games/{id}", func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
-		game, err := s.store.Games().ByID(r.Context(), id)
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
+
+		game, error := s.store.ByID(r.Context(), idStr)
+		if error != nil {
+			fmt.Fprintf(w, "Unknown err: %v", error)
 			return
 		}
 		render.JSON(w, r, game)
 	})
+
 	r.Put("/games", func(w http.ResponseWriter, r *http.Request) {
 		game := new(models.Game)
 		if err := json.NewDecoder(r.Body).Decode(game); err != nil {
@@ -77,77 +79,77 @@ func (s *Server) basicHandler() chi.Router {
 			return
 		}
 
-		s.store.Games().Update(r.Context(), game)
+		s.store.Update(r.Context(), game)
 	})
+
 	r.Delete("/games/{id}", func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
-		id, err := strconv.Atoi(idStr)
+		//id, err := strconv.Atoi(idStr)
 
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
+		error := s.store.Delete(r.Context(), idStr)
+		if error != nil {
 			return
 		}
-
-		s.store.Games().Delete(r.Context(), id)
 	})
-
-
 
 	// Profiles
-	r.Post("/profiles", func(w http.ResponseWriter, r *http.Request) {
-		profile := new(models.Profile)
-		if err := json.NewDecoder(r.Body).Decode(profile); err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
-
-		s.store.Profiles().Create(r.Context(), profile)
-	})
-	r.Get("/profiles", func(w http.ResponseWriter, r *http.Request) {
-		profiles, err := s.store.Profiles().All(r.Context())
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
-
-		render.JSON(w, r, profiles)
-	})
-	r.Get("/profiles/{id}", func(w http.ResponseWriter, r *http.Request) {
-		idStr := chi.URLParam(r, "id")
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
-		profile, err := s.store.Profiles().ByID(r.Context(), id)
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
-
-		render.JSON(w, r, profile)
-	})
-	r.Put("/profiles", func(w http.ResponseWriter, r *http.Request) {
-		profile := new(models.Profile)
-		if err := json.NewDecoder(r.Body).Decode(profile); err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
-
-		s.store.Profiles().Update(r.Context(), profile)
-	})
-	r.Delete("/profiles/{id}", func(w http.ResponseWriter, r *http.Request) {
-		idStr := chi.URLParam(r, "id")
-		id, err := strconv.Atoi(idStr)
-
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
-
-		s.store.Profiles().Delete(r.Context(), id)
-	})
-
+	//r.Post("/profiles", func(w http.ResponseWriter, r *http.Request) {
+	//	profile := new(models.Profile)
+	//	if err := json.NewDecoder(r.Body).Decode(profile); err != nil {
+	//		fmt.Fprintf(w, "Unknown err: %v", err)
+	//		return
+	//	}
+	//
+	//	s.store.Profiles().Create(r.Context(), profile)
+	//})
+	//r.Get("/profiles", func(w http.ResponseWriter, r *http.Request) {
+	//	profiles, err := s.store.Profiles().All(r.Context())
+	//	if err != nil {
+	//		fmt.Fprintf(w, "Unknown err: %v", err)
+	//		return
+	//	}
+	//
+	//	render.JSON(w, r, profiles)
+	//})
+	//r.Get("/profiles/{id}", func(w http.ResponseWriter, r *http.Request) {
+	//	idStr := chi.URLParam(r, "id")
+	//	id, err := strconv.Atoi(idStr)
+	//	if err != nil {
+	//		fmt.Fprintf(w, "Unknown err: %v", err)
+	//		return
+	//	}
+	//	profile, err := s.store.Profiles().ByID(r.Context(), id)
+	//	if err != nil {
+	//		fmt.Fprintf(w, "Unknown err: %v", err)
+	//		return
+	//	}
+	//
+	//	render.JSON(w, r, profile)
+	//})
+	//r.Put("/profiles", func(w http.ResponseWriter, r *http.Request) {
+	//	profile := new(models.Profile)
+	//	if err := json.NewDecoder(r.Body).Decode(profile); err != nil {
+	//		fmt.Fprintf(w, "Unknown err: %v", err)
+	//		return
+	//	}
+	//
+	//	s.store.Profiles().Update(r.Context(), profile)
+	//})
+	//r.Delete("/profiles/{id}", func(w http.ResponseWriter, r *http.Request) {
+	//	idStr := chi.URLParam(r, "id")
+	//	id, err := strconv.Atoi(idStr)
+	//
+	//	if err != nil {
+	//		fmt.Fprintf(w, "Unknown err: %v", err)
+	//		return
+	//	}
+	//
+	//	error := s.store.Profiles().Delete(r.Context(), id)
+	//	if error != nil {
+	//		return
+	//	}
+	//})
+	//
 	return r
 }
 
@@ -177,4 +179,5 @@ func (s *Server) ListenCtxForGT(srv *http.Server) {
 
 func (s *Server) WaitForGracefulTermination() {
 	<-s.idleConnsCh
+	os.RemoveAll("./tmp")
 }
