@@ -2,10 +2,8 @@ package http
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"lectures/hw6/internal/models"
+	"lectures/hw6/internal/cache"
+	"lectures/hw6/internal/http/resources"
 	"lectures/hw6/internal/store"
 	"log"
 	"net/http"
@@ -13,7 +11,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
-	"github.com/go-chi/render"
 )
 
 type Server struct {
@@ -21,76 +18,80 @@ type Server struct {
 	idleConnsCh chan struct{}
 	store       store.GamesRepository
 
+	cache   cache.Cache
 	Address string
 }
 
-func NewServer(ctx context.Context, address string, games store.GamesRepository) *Server {
-	return &Server{
+func NewServer(ctx context.Context, opts ...ServerOption) *Server {
+	srv := &Server{
 		ctx:         ctx,
 		idleConnsCh: make(chan struct{}),
-		store:       games,
-
-		Address: address,
 	}
+
+	for _, opt := range opts {
+		opt(srv)
+	}
+
+	return srv
 }
 
 func (s *Server) basicHandler() chi.Router {
 	r := chi.NewRouter()
-
-	// Games
-	r.Post("/games", func(w http.ResponseWriter, r *http.Request) {
-		game := new(models.Game)
-		if err := json.NewDecoder(r.Body).Decode(game); err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
-		game.ID = primitive.NewObjectID()
-		err := s.store.Create(r.Context(), game)
-		if err != nil {
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	})
-
-	r.Get("/games", func(w http.ResponseWriter, r *http.Request) {
-		games, err := s.store.All(r.Context())
-		if err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
-		render.JSON(w, r, games)
-	})
-
-	r.Get("/games/{id}", func(w http.ResponseWriter, r *http.Request) {
-		idStr := chi.URLParam(r, "id")
-
-		game, error := s.store.ByID(r.Context(), idStr)
-		if error != nil {
-			fmt.Fprintf(w, "Unknown err: %v", error)
-			return
-		}
-		render.JSON(w, r, game)
-	})
-
-	r.Put("/games", func(w http.ResponseWriter, r *http.Request) {
-		game := new(models.Game)
-		if err := json.NewDecoder(r.Body).Decode(game); err != nil {
-			fmt.Fprintf(w, "Unknown err: %v", err)
-			return
-		}
-
-		s.store.Update(r.Context(), game)
-	})
-
-	r.Delete("/games/{id}", func(w http.ResponseWriter, r *http.Request) {
-		idStr := chi.URLParam(r, "id")
-		//id, err := strconv.Atoi(idStr)
-
-		error := s.store.Delete(r.Context(), idStr)
-		if error != nil {
-			return
-		}
-	})
+	//
+	//// Games
+	//r.Post("/games", func(w http.ResponseWriter, r *http.Request) {
+	//	game := new(models.Game)
+	//	if err := json.NewDecoder(r.Body).Decode(game); err != nil {
+	//		fmt.Fprintf(w, "Unknown err: %v", err)
+	//		return
+	//	}
+	//	game.ID = primitive.NewObjectID()
+	//	err := s.store.Create(r.Context(), game)
+	//	if err != nil {
+	//		return
+	//	}
+	//	w.WriteHeader(http.StatusCreated)
+	//})
+	//
+	//r.Get("/games", func(w http.ResponseWriter, r *http.Request) {
+	//	games, err := s.store.All(r.Context())
+	//	if err != nil {
+	//		fmt.Fprintf(w, "Unknown err: %v", err)
+	//		return
+	//	}
+	//	render.JSON(w, r, games)
+	//})
+	//
+	//r.Get("/games/{id}", func(w http.ResponseWriter, r *http.Request) {
+	//	idStr := chi.URLParam(r, "id")
+	//
+	//	game, error := s.store.ByID(r.Context(), idStr)
+	//	if error != nil {
+	//		fmt.Fprintf(w, "Unknown err: %v", error)
+	//		return
+	//	}
+	//	render.JSON(w, r, game)
+	//})
+	//
+	//r.Put("/games", func(w http.ResponseWriter, r *http.Request) {
+	//	game := new(models.Game)
+	//	if err := json.NewDecoder(r.Body).Decode(game); err != nil {
+	//		fmt.Fprintf(w, "Unknown err: %v", err)
+	//		return
+	//	}
+	//
+	//	s.store.Update(r.Context(), game)
+	//})
+	//
+	//r.Delete("/games/{id}", func(w http.ResponseWriter, r *http.Request) {
+	//	idStr := chi.URLParam(r, "id")
+	//	//id, err := strconv.Atoi(idStr)
+	//
+	//	error := s.store.Delete(r.Context(), idStr)
+	//	if error != nil {
+	//		return
+	//	}
+	//})
 
 	// Profiles
 	//r.Post("/profiles", func(w http.ResponseWriter, r *http.Request) {
@@ -149,7 +150,9 @@ func (s *Server) basicHandler() chi.Router {
 	//		return
 	//	}
 	//})
-	//
+	gamesResource := resources.NewGamesResource(s.store, s.cache)
+	r.Mount("/games", gamesResource.Routes())
+
 	return r
 }
 

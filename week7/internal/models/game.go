@@ -13,3 +13,7 @@ type Game struct {
 	Publisher string   `bson:"publisher"`
 	Reviews   []string `bson:"reviews"`
 }
+
+type GamesFilter struct {
+	Query *string `json:"query"`
+}

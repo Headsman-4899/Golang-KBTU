@@ -12,7 +12,7 @@ import (
 
 type GamesRepository interface {
 	Create(ctx context.Context, game *models.Game) error
-	All(ctx context.Context) ([]*models.Game, error)
+	All(ctx context.Context, filter *models.GamesFilter) ([]*models.Game, error)
 	ByID(ctx context.Context, id string) (*models.Game, error)
 	Update(ctx context.Context, game *models.Game) error
 	Delete(ctx context.Context, id string) error

@@ -30,10 +30,10 @@ func (db *DB) Create(ctx context.Context, game *models.Game) error {
 	return err
 }
 
-func (db *DB) All(ctx context.Context) ([]*models.Game, error) {
+func (db *DB) All(ctx context.Context, filter *models.GamesFilter) ([]*models.Game, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
-	filter := bson.D{{}}
+	//filter := bson.D{{}}
 
 	return db.filterTasks(ctx, filter)
 }
