@@ -3,22 +3,25 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi"
-	"github.com/go-chi/render"
-	validation "github.com/go-ozzo/ozzo-validation"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"lectures/hw6/internal/cache"
+
+	//"lectures/hw6/internal/cache"
 	"lectures/hw6/internal/models"
 	"lectures/hw6/internal/store"
 	"net/http"
+
+	"github.com/go-chi/chi"
+	"github.com/go-chi/render"
+	validation "github.com/go-ozzo/ozzo-validation"
+	lru "github.com/hashicorp/golang-lru"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type GamesResource struct {
 	store store.GamesRepository
-	cache cache.Cache
+	cache *lru.TwoQueueCache
 }
 
-func NewGamesResource(store store.GamesRepository, cache cache.Cache) *GamesResource {
+func NewGamesResource(store store.GamesRepository, cache *lru.TwoQueueCache) *GamesResource {
 	return &GamesResource{
 		store: store,
 		cache: cache,
@@ -53,11 +56,11 @@ func (cr *GamesResource) CreateGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := cr.cache.DeleteAll(r.Context()); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Cache err: %v", err)
-		return
-	}
+	// if err := cr.cache.DeleteAll(r.Context()); err != nil {
+	// 	w.WriteHeader(http.StatusInternalServerError)
+	// 	fmt.Fprintf(w, "Cache err: %v", err)
+	// 	return
+	// }
 
 	w.WriteHeader(http.StatusCreated)
 }
@@ -68,13 +71,8 @@ func (cr *GamesResource) AllGames(w http.ResponseWriter, r *http.Request) {
 
 	searchQuery := queryValues.Get("query")
 	if searchQuery != "" {
-		gamesFromCache, err := cr.cache.Games().Get(r.Context(), searchQuery)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Cache err: %v", err)
-			return
-		}
-		if gamesFromCache != nil {
+		gamesFromCache, ok := cr.cache.Get(searchQuery)
+		if ok {
 			render.JSON(w, r, gamesFromCache)
 			return
 		}
@@ -82,23 +80,24 @@ func (cr *GamesResource) AllGames(w http.ResponseWriter, r *http.Request) {
 		filter.Query = &searchQuery
 	}
 
-	categories, err := cr.store.All(r.Context(), filter)
+	games, err := cr.store.All(r.Context(), filter)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "DB err: %v", err)
 		return
 	}
 
-	if searchQuery != "" && len(categories) > 0 {
-		err = cr.cache.Games().Set(r.Context(), searchQuery, categories)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Cache err: %v", err)
-			return
-		}
+	if searchQuery != "" && len(games) > 0 {
+		// err = cr.cache.Games().Set(r.Context(), searchQuery, games)
+		// if err != nil {
+		// 	w.WriteHeader(http.StatusInternalServerError)
+		// 	fmt.Fprintf(w, "Cache err: %v", err)
+		// 	return
+		// }
+		cr.cache.Add(searchQuery, games)
 	}
 
-	render.JSON(w, r, categories)
+	render.JSON(w, r, games)
 }
 
 func (cr *GamesResource) ById(w http.ResponseWriter, r *http.Request) {

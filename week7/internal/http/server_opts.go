@@ -1,8 +1,10 @@
 package http
 
 import (
-	"lectures/hw6/internal/cache"
+	//"lectures/hw6/internal/cache"
 	"lectures/hw6/internal/store"
+
+	lru "github.com/hashicorp/golang-lru"
 )
 
 type ServerOption func(srv *Server)
@@ -19,7 +21,7 @@ func WithStore(store store.GamesRepository) ServerOption {
 	}
 }
 
-func WithCache(cache cache.Cache) ServerOption {
+func WithCache(cache *lru.TwoQueueCache) ServerOption {
 	return func(srv *Server) {
 		srv.cache = cache
 	}

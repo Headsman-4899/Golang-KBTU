@@ -2,21 +2,23 @@ package main
 
 import (
 	"context"
-	redis_cache "lectures/hw6/internal/cache/redis-cache"
 	"lectures/hw6/internal/http"
 	"lectures/hw6/internal/store/inmemory"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
+
+	lru "github.com/hashicorp/golang-lru"
 )
 
 func main() {
 	store := inmemory.Init()
 
-	//srv := http.NewServer(context.Background(), ":8080", store)
-	//if err := srv.Run(); err != nil {
-	//	log.Println(err)
-	//}
-
-	cache := redis_cache.NewRedisCache(":8080", 1, 1800)
+	cache, err := lru.New2Q(6)
+	if err != nil {
+		panic(err)
+	}
 
 	srv := http.NewServer(context.Background(),
 		http.WithAddress(":8080"),
@@ -28,4 +30,13 @@ func main() {
 	}
 
 	srv.WaitForGracefulTermination()
+}
+
+func CatchTermination(cancel context.CancelFunc) {
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	<-stop
+
+	log.Print("[WARN] caught termination signal")
+	cancel()
 }

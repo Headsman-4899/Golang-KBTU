@@ -7,6 +7,7 @@ require (
 	github.com/go-chi/render v1.0.1
 	github.com/go-ozzo/ozzo-validation v3.6.0+incompatible
 	github.com/go-redis/redis/v8 v8.11.4
+	github.com/hashicorp/golang-lru v0.5.4
 	go.mongodb.org/mongo-driver v1.7.4
 )
 
