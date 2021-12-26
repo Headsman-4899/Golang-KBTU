@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"lectures/hw6/internal/http"
-	"lectures/hw6/internal/store/inmemory"
+	"lectures/hw6/internal/store/mongodb"
 	"log"
 	"os"
 	"os/signal"
@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	store := inmemory.Init()
+	store := mongodb.Init()
 
 	cache, err := lru.New2Q(6)
 	if err != nil {

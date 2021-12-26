@@ -15,7 +15,7 @@ type GameRedisCache struct {
 	expires time.Duration
 }
 
-func NewMangaRedisCache(host string, db int, expires time.Duration) GameCache {
+func NewGameRedisCache(host string, db int, expires time.Duration) GameCache {
 	return &GameRedisCache{
 		host:    host,
 		db:      db,

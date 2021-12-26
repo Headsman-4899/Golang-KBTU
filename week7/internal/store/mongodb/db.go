@@ -1,4 +1,4 @@
-package inmemory
+package mongodb
 
 import (
 	"context"

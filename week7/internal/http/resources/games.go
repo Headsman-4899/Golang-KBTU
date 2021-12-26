@@ -56,12 +56,6 @@ func (cr *GamesResource) CreateGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// if err := cr.cache.DeleteAll(r.Context()); err != nil {
-	// 	w.WriteHeader(http.StatusInternalServerError)
-	// 	fmt.Fprintf(w, "Cache err: %v", err)
-	// 	return
-	// }
-
 	w.WriteHeader(http.StatusCreated)
 }
 

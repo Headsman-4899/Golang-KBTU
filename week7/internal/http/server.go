@@ -2,18 +2,13 @@ package http
 
 import (
 	"context"
-	//"lectures/hw6/internal/cache"
+	"github.com/go-chi/chi"
+	lru "github.com/hashicorp/golang-lru"
 	"lectures/hw6/internal/http/resources"
 	"lectures/hw6/internal/store"
 	"log"
 	"net/http"
-
-	//"os"
 	"time"
-
-	lru "github.com/hashicorp/golang-lru"
-
-	"github.com/go-chi/chi"
 )
 
 type Server struct {
@@ -21,7 +16,6 @@ type Server struct {
 	idleConnsCh chan struct{}
 	store       store.GamesRepository
 
-	//cache   cache.Cache
 	cache   *lru.TwoQueueCache
 	Address string
 }

@@ -1,10 +1,8 @@
 package http
 
 import (
-	//"lectures/hw6/internal/cache"
-	"lectures/hw6/internal/store"
-
 	lru "github.com/hashicorp/golang-lru"
+	"lectures/hw6/internal/store"
 )
 
 type ServerOption func(srv *Server)
