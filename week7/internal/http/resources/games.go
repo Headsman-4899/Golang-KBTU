@@ -3,8 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
-
-	//"lectures/hw6/internal/cache"
+	"lectures/hw6/internal/message_broker"
 	"lectures/hw6/internal/models"
 	"lectures/hw6/internal/store"
 	"net/http"
@@ -17,14 +16,16 @@ import (
 )
 
 type GamesResource struct {
-	store store.GamesRepository
-	cache *lru.TwoQueueCache
+	store  store.GamesRepository
+	broker message_broker.MessageBroker
+	cache  *lru.TwoQueueCache
 }
 
-func NewGamesResource(store store.GamesRepository, cache *lru.TwoQueueCache) *GamesResource {
+func NewGamesResource(store store.GamesRepository, broker message_broker.MessageBroker, cache *lru.TwoQueueCache) *GamesResource {
 	return &GamesResource{
-		store: store,
-		cache: cache,
+		store:  store,
+		broker: broker,
+		cache:  cache,
 	}
 }
 
@@ -56,6 +57,10 @@ func (cr *GamesResource) CreateGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err := cr.broker.Cache().Purge()
+	if err != nil {
+		return
+	}
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -107,25 +112,30 @@ func (cr *GamesResource) ById(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cr *GamesResource) UpdateGame(w http.ResponseWriter, r *http.Request) {
-	category := new(models.Game)
-	if err := json.NewDecoder(r.Body).Decode(category); err != nil {
+	game := new(models.Game)
+	if err := json.NewDecoder(r.Body).Decode(game); err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		fmt.Fprintf(w, "Unknown err: %v", err)
 		return
 	}
 
-	err := validation.ValidateStruct(category,
-		validation.Field(&category.ID, validation.Required),
-		validation.Field(&category.Name, validation.Required))
+	err := validation.ValidateStruct(game,
+		validation.Field(&game.ID, validation.Required),
+		validation.Field(&game.Name, validation.Required))
 	if err != nil {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		fmt.Fprintf(w, "Unknown err: %v", err)
 		return
 	}
 
-	if err = cr.store.Update(r.Context(), category); err != nil {
+	if err = cr.store.Update(r.Context(), game); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "DB err: %v", err)
+		return
+	}
+
+	err = cr.broker.Cache().Remove(game.ID)
+	if err != nil {
 		return
 	}
 }
@@ -142,6 +152,11 @@ func (cr *GamesResource) DeleteGame(w http.ResponseWriter, r *http.Request) {
 	if err := cr.store.Delete(r.Context(), idStr); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "DB err: %v", err)
+		return
+	}
+
+	err := cr.broker.Cache().Remove(idStr)
+	if err != nil {
 		return
 	}
 }

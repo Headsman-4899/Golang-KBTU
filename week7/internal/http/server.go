@@ -5,6 +5,7 @@ import (
 	"github.com/go-chi/chi"
 	lru "github.com/hashicorp/golang-lru"
 	"lectures/hw6/internal/http/resources"
+	"lectures/hw6/internal/message_broker"
 	"lectures/hw6/internal/store"
 	"log"
 	"net/http"
@@ -17,6 +18,7 @@ type Server struct {
 	store       store.GamesRepository
 
 	cache   *lru.TwoQueueCache
+	broker  message_broker.MessageBroker
 	Address string
 }
 
@@ -35,7 +37,7 @@ func NewServer(ctx context.Context, opts ...ServerOption) *Server {
 
 func (s *Server) basicHandler() chi.Router {
 	r := chi.NewRouter()
-	gamesResource := resources.NewGamesResource(s.store, s.cache)
+	gamesResource := resources.NewGamesResource(s.store, s.broker, s.cache)
 	r.Mount("/games", gamesResource.Routes())
 
 	return r

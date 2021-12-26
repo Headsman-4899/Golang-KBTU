@@ -2,6 +2,7 @@ package http
 
 import (
 	lru "github.com/hashicorp/golang-lru"
+	"lectures/hw6/internal/message_broker"
 	"lectures/hw6/internal/store"
 )
 
@@ -22,5 +23,11 @@ func WithStore(store store.GamesRepository) ServerOption {
 func WithCache(cache *lru.TwoQueueCache) ServerOption {
 	return func(srv *Server) {
 		srv.cache = cache
+	}
+}
+
+func WithBroker(broker message_broker.MessageBroker) ServerOption {
+	return func(srv *Server) {
+		srv.broker = broker
 	}
 }
